@@ -183,7 +183,7 @@
               <button class="btn btn--outline btn--small" type="button" data-clear-orders>Clear orders</button>
               <button class="btn btn--outline btn--small" type="button" data-clear-audit>Clear audit log</button>
             </div>
-            <p class="form-note mt-3">GitHub Pages publishing: export the catalogue, then upload the downloaded file to <code>data/catalogue-publish.json</code> in your GitHub repository and commit it. GitHub Actions will validate and publish the updated catalogue. Customer orders remain local to each browser.</p>
+            <p class="form-note mt-3">For automatic publishing, connect GitHub above once per browser tab. Saving a product then commits the current catalogue to <code>data/catalogue-publish.json</code>; GitHub Actions validates the catalogue, regenerates the shared seed files and deploys the storefront. Customer orders remain local to each browser.</p>
             <div class="divider mt-5"></div>
             <label class="field mt-5"><span class="field__label">Restore from a backup file</span>
               <input class="input" type="file" accept="application/json,.json" data-backup-file>
