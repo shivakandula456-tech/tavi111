@@ -1237,6 +1237,114 @@
     node[parts[parts.length - 1]] = value;
   }
 
+  /* GitHub Pages catalogue publisher. Token exists only in sessionStorage. */
+  (function installGitHubPublisher() {
+    var tokenKey = 'tavish_github_publish_token';
+    var owner = 'shivakandula456-tech';
+    var repo = 'tavi111';
+    var branch = 'main';
+    function getToken() {
+      try { return window.sessionStorage.getItem(tokenKey) || ''; } catch (e) { return ''; }
+    }
+    function api(path, options) {
+      options = options || {};
+      options.headers = Object.assign({
+        'Accept': 'application/vnd.github+json',
+        'Authorization': 'Bearer ' + getToken(),
+        'X-GitHub-Api-Version': '2022-11-28'
+      }, options.headers || {});
+      return fetch('https://api.github.com/repos/' + owner + '/' + repo + path, options).then(function (response) {
+        return response.text().then(function (raw) {
+          var body = {};
+          try { body = raw ? JSON.parse(raw) : {}; } catch (e) {}
+          if (!response.ok) {
+            var message = body.message || ('GitHub returned HTTP ' + response.status);
+            if (response.status === 401 || response.status === 403) message += '. Check token expiry and Contents read/write permission for this repository.';
+            throw new Error(message);
+          }
+          return body;
+        });
+      });
+    }
+    function makePayload() {
+      return {
+        format: 'tavish-publish-catalogue',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        products: store.products.all(),
+        categories: store.categories.list(),
+        settings: store.settings.get()
+      };
+    }
+    function publish() {
+      if (!getToken()) return Promise.resolve({ ok: false, skipped: true, error: 'No GitHub token connected.' });
+      var path = '/contents/data/catalogue-publish.json';
+      var url = 'https://api.github.com/repos/' + owner + '/' + repo + path + '?ref=' + encodeURIComponent(branch);
+      return fetch(url, { headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': 'Bearer ' + getToken(),
+        'X-GitHub-Api-Version': '2022-11-28'
+      }}).then(function (response) {
+        if (response.status === 404) return null;
+        return response.text().then(function (raw) {
+          var body = {};
+          try { body = raw ? JSON.parse(raw) : {}; } catch (e) {}
+          if (!response.ok) throw new Error(body.message || ('Could not read catalogue file (HTTP ' + response.status + ').'));
+          return body;
+        });
+      }).then(function (existing) {
+        var payload = JSON.stringify(makePayload(), null, 2);
+        // GitHub's Contents API accepts UTF-8 content encoded as base64.
+        var bytes = new TextEncoder().encode(payload);
+        var binary = '';
+        for (var i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        var encoded = btoa(binary);
+        var body = { message: 'Publish catalogue from Admin', content: encoded, branch: branch };
+        if (existing && existing.sha) body.sha = existing.sha;
+        return api(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      }).then(function (result) {
+        return { ok: true, commit: result.commit && result.commit.sha, url: result.content && result.content.html_url };
+      });
+    }
+    window.TavishGitHubPublisher = { publish: publish };
+    function initConnectionControls() {
+      var tokenInput = qs('[data-github-token]');
+      var connect = qs('[data-github-connect]');
+      var disconnect = qs('[data-github-disconnect]');
+      var status = qs('[data-github-status]');
+      if (!tokenInput || !connect || !status) return;
+      function refreshStatus(message) {
+        status.textContent = message || (getToken() ? 'Connected for this tab session' : 'Not connected');
+      }
+      refreshStatus();
+      connect.addEventListener('click', function () {
+        var token = tokenInput.value.trim();
+        if (token) {
+          try { window.sessionStorage.setItem(tokenKey, token); } catch (e) { refreshStatus('Session storage unavailable'); return; }
+        } else if (!getToken()) {
+          refreshStatus('Paste a GitHub token first');
+          return;
+        }
+        status.textContent = 'Verifying repository access…';
+        api('/contents/data/products.js?ref=' + encodeURIComponent(branch)).then(function () {
+          tokenInput.value = '';
+          refreshStatus('Connected — repository access verified');
+          T.toast('GitHub connection verified for this tab', 'success');
+        }).catch(function (err) {
+          try { window.sessionStorage.removeItem(tokenKey); } catch (e) {}
+          refreshStatus('Connection failed: ' + err.message);
+          T.toast('GitHub connection failed: ' + err.message, 'error');
+        });
+      });
+      if (disconnect) disconnect.addEventListener('click', function () {
+        try { window.sessionStorage.removeItem(tokenKey); } catch (e) {}
+        tokenInput.value = '';
+        refreshStatus('Disconnected');
+      });
+    }
+    window.setTimeout(initConnectionControls, 0);
+  })();
+
   function initSettings() {
     var settings = store.settings.get();
 
