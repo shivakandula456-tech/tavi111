@@ -725,7 +725,22 @@
         return null;
       }
       if (requested !== 'ACTIVE' || data.status === 'ACTIVE') {
-        T.toast('Product saved in this browser only', 'success');
+        T.toast('Product saved locally. Publishing to GitHub…', 'success');
+      }
+      if (typeof window.TavishGitHubPublisher === 'function') {
+        window.TavishGitHubPublisher.publish().then(function (result) {
+          if (result && result.ok) {
+            T.toast('Product published to GitHub. Deployment has started.', 'success');
+          } else if (result && result.skipped) {
+            T.toast('Saved in this browser only. Connect GitHub in Admin Settings to publish.', 'error');
+          } else {
+            T.toast('Saved locally, but GitHub publishing failed: ' + ((result && result.error) || 'unknown error'), 'error');
+          }
+        }).catch(function (publishError) {
+          T.toast('Saved locally, but GitHub publishing failed: ' + (publishError.message || 'unknown error'), 'error');
+        });
+      } else {
+        T.toast('Saved in this browser only. GitHub publishing is not configured.', 'error');
       }
       if (errBox && requested !== 'ACTIVE' && data.status === 'DRAFT') {
         errBox.hidden = false;
