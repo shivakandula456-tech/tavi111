@@ -61,7 +61,7 @@
       </div>
 
       <main class="admin-body" id="main">
-        <p class="lede">Brand details, shop policies and backups. Values are read and written to this browser's local storage.</p>
+        <p class="lede">Brand details, shop policies and backups. Most settings are stored in this browser. Connect GitHub below to publish catalogue changes to the live storefront.</p>
 
         <form class="panel mt-5" data-settings-form="brand">
           <div class="panel__head"><h2>Brand &amp; contact</h2></div>
@@ -156,6 +156,22 @@
             <div class="row mt-5"><button class="btn btn--gold btn--small" type="submit">Save credentials</button></div>
           </div>
         </form>
+
+        <div class="panel mt-5" data-github-publisher>
+          <div class="panel__head"><h2>Automatic GitHub publishing</h2></div>
+          <div class="panel__body">
+            <p class="form-note">Connect this Admin session to your GitHub repository. When you save a product, the current catalogue is uploaded to <code>data/catalogue-publish.json</code> and GitHub Actions publishes the storefront.</p>
+            <label class="field mt-3"><span class="field__label">GitHub fine-grained personal access token</span>
+              <input class="input" type="password" autocomplete="off" spellcheck="false" data-github-token placeholder="github_pat_…" />
+            </label>
+            <p class="admin-note">Create a fine-grained token limited to <strong>shivakandula456-tech/tavi111</strong> with repository Contents read/write permission. The token is held in this browser tab's session storage only; it is not written into the repository. Anyone who can access this Admin session while connected could use the token, so sign out and close the tab when finished.</p>
+            <div class="row mt-3">
+              <button class="btn btn--gold btn--small" type="button" data-github-connect>Connect &amp; verify</button>
+              <button class="btn btn--outline btn--small" type="button" data-github-disconnect>Disconnect</button>
+              <span class="form-note" data-github-status aria-live="polite">Not connected</span>
+            </div>
+          </div>
+        </div>
 
         <div class="panel">
           <div class="panel__head"><h2>Backup &amp; data management</h2></div>
