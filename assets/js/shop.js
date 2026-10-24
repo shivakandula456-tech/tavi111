@@ -335,6 +335,18 @@
     state.sale = false;
     state.q = '';
     state.sort = 'featured';
+    pendingState = null;
+
+    // Clear any visible search inputs and mobile filter selections too.
+    T.qsa('input[type="search"], input[name="q"], [data-shop-search]').forEach(function (input) {
+      input.value = '';
+    });
+    setControlsFrom(state);
+
+    var sortControl = T.qs('[data-sort]');
+    if (sortControl) sortControl.value = 'featured';
+
+    closeMobileFilters(true);
     render();
   }
 
