@@ -34,11 +34,6 @@ window.TAVISH_SEED_SETTINGS = {
     defaultDescription: 'Discover TAVISH & CO. — anti-tarnish essentials, Korean-inspired edits and festive Indian jewellery crafted in gold tones, pearls and hand-set stones. UPI payments accepted across India.',
     ogImage: 'assets/images/hero/hero-poster.jpg'
   },
-  admin: {
-    username: 'admin',
-    password: 'Tavish@2026',
-    note: 'Client-side Admin login only. This is not secure authentication; all changes remain in this browser.'
-  },
   disclaimer: {
     orders: 'Orders on this static website are saved in your browser\'s localStorage. No order data is transmitted to a server in this static architecture.',
     admin: 'Admin login and catalogue management are browser-local only. This is not secure authentication and changes do not sync across devices.',
