@@ -36,7 +36,7 @@ function say(s){msg.textContent=s;msg.classList.remove('hidden')}
 function slugify(s){return String(s||'').toLowerCase().trim().replace(/&/g,'and').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}
 function money(p){return '₹'+(Number(p||0)/100).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
 async function init(){
- const {data:{session},error}=await client.auth.getSession();if(error||!session){location.href='login.html?cloud=1';return}
+ const {data:{session},error}=await client.auth.getSession();if(error||!session){location.href='cloud-login.html';return}
  const {data:profile,error:pe}=await client.from('profiles').select('role').eq('id',session.user.id).maybeSingle();
  if(pe||!profile||profile.role!=='admin'){say('Signed in, but this account is not assigned the Admin role. Ask the project owner to provision the Admin profile in Supabase.');$('workspace').classList.add('hidden');return}
  $('workspace').classList.remove('hidden');await load();
