@@ -217,6 +217,8 @@
     return new Promise(function (resolve, reject) {
       var src = /^https?:\/\//i.test(name) ? name : 'assets/js/' + name.replace(/^\//, '');
       var script = document.createElement('script');
+      // Bust stale GitHub Pages/browser caches for the filter reset fix.
+      if (name === 'shop.js') src += (src.indexOf('?') > -1 ? '&' : '?') + 'v=20261025-reset-fix-2';
       script.src = src;
       script.async = false;
       script.onload = resolve;
