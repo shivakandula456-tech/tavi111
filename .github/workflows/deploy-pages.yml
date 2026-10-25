@@ -24,6 +24,9 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Validate site asset references and JavaScript syntax
+        run: python3 scripts/validate_site.py
+
       - name: Verify static entry point
         run: |
           test -f index.html
