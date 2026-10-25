@@ -287,6 +287,10 @@
       if (btn.closest('#shopFilters')) return;
       btn.addEventListener('click', resetAll);
     });
+    // Reset inside the filter panel must be wired separately from the
+    // active-filter chips above; on mobile it applies immediately as well.
+    var filterReset = T.qs('#shopFilters [data-reset-filters]');
+    if (filterReset) filterReset.addEventListener('click', function () { resetAll(true); });
 
     var panel = T.qs('#shopFilters');
     var toggle = T.qs('[data-filter-toggle]');
@@ -307,9 +311,8 @@
     });
     var resetPending = T.qs('[data-filter-reset-pending]');
     if (resetPending) resetPending.addEventListener('click', function () {
-      pendingState = cloneState(state);
-      pendingState.category = []; pendingState.sub = []; pendingState.flag = []; pendingState.price = []; pendingState.availability = []; pendingState.sale = false; pendingState.q = '';
-      setControlsFrom(pendingState);
+      // This button uses the same immediate reset behaviour as the panel Reset.
+      resetAll(true);
     });
   }
 
@@ -326,7 +329,7 @@
     if (toggle && isMobileFilters()) toggle.focus({preventScroll:true});
   }
 
-  function resetAll() {
+  function resetAll(keepPanelOpen) {
     state.category = [];
     state.sub = [];
     state.flag = [];
@@ -335,9 +338,10 @@
     state.sale = false;
     state.q = '';
     state.sort = 'featured';
+    // Drop staged mobile selections so Apply cannot restore stale filters.
     pendingState = null;
 
-    // Clear any visible search inputs and mobile filter selections too.
+    // Clear visible search inputs and synchronize every filter control.
     T.qsa('input[type="search"], input[name="q"], [data-shop-search]').forEach(function (input) {
       input.value = '';
     });
@@ -346,7 +350,9 @@
     var sortControl = T.qs('[data-sort]');
     if (sortControl) sortControl.value = 'featured';
 
-    closeMobileFilters(true);
+    // Keep the mobile sheet open when Reset is tapped inside it, so shoppers
+    // can see the cleared checkboxes. The product grid and URL still update now.
+    if (!keepPanelOpen) closeMobileFilters(true);
     render();
   }
 
