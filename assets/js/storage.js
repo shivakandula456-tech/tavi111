@@ -157,15 +157,12 @@
       write(KEYS.settings, mergeDeep(window.TAVISH_SEED_SETTINGS || {}, v6Settings));
       write(KEYS.seedVersion, SEED_VERSION);
     } else if (version < 8) {
-      // V31: configure browser-local Admin credentials without requiring an external auth service.
-      var localAdminSettings = read(KEYS.settings, {}) || {};
-      localAdminSettings.admin = localAdminSettings.admin || {};
-      if (!localAdminSettings.admin.username) localAdminSettings.admin.username = 'admin';
-      if (!localAdminSettings.admin.password) localAdminSettings.admin.password = 'Tavish@2026';
-      localAdminSettings.admin.note = 'Client-side Admin login only. This is not secure authentication; changes remain in this browser.';
-      localAdminSettings.disclaimer = localAdminSettings.disclaimer || {};
-      localAdminSettings.disclaimer.admin = 'Local-only Admin: products, orders and settings are saved in this browser and do not sync to other devices.';
-      write(KEYS.settings, mergeDeep(window.TAVISH_SEED_SETTINGS || {}, localAdminSettings));
+      // Retire the former public/browser-only Admin credentials.
+      var retiredAdminSettings = read(KEYS.settings, {}) || {};
+      delete retiredAdminSettings.admin;
+      retiredAdminSettings.disclaimer = retiredAdminSettings.disclaimer || {};
+      retiredAdminSettings.disclaimer.admin = 'Administration uses Supabase Auth with database-enforced roles.';
+      write(KEYS.settings, mergeDeep(window.TAVISH_SEED_SETTINGS || {}, retiredAdminSettings));
       write(KEYS.seedVersion, SEED_VERSION);
     } else if (version < SEED_VERSION) {
       // GitHub Pages catalogue publication: refresh shared seed data on existing browsers.
