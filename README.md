@@ -1,49 +1,34 @@
-# TAVISH & CO. — V31 Browser-Only Admin
+# TAVISH & CO.
 
-A static storefront built with HTML, CSS and vanilla JavaScript. No Supabase, backend server, database service, API, Node.js runtime or frontend framework is required.
+Responsive static storefront built with HTML, CSS and vanilla JavaScript. Hosted on GitHub Pages. The shared catalogue and Admin data use Supabase.
 
-## Administration
+## Main links
 
-- Admin URL: `/admin/login.html`
-- Initial Admin ID: `admin`
-- Initial password: `Tavish@2026`
-- Admin sections: dashboard, products, product editor, categories, media library, orders, order detail, newsletter, settings/backup and audit log.
-- Admin login is implemented entirely in public browser JavaScript. It is a convenience barrier only and is **not secure authentication**.
+- Storefront: `/`
+- Secure Admin login: `/admin/cloud-login.html`
+- Unified Admin control panel: `/admin/cloud-admin.html`
+- Connection check: `/supabase-connection-check.html`
+- Rebuild audit: [REBUILD_AUDIT_2026-10-25.md](REBUILD_AUDIT_2026-10-25.md)
 
-## Browser-local behaviour
+## Current architecture
 
-Products, categories, website settings, order records, cart, wishlist, Admin session and audit log are stored in the current browser's local storage. Product uploads are compressed in the browser and saved as image data URLs with product records. Browser storage is limited; export backups regularly.
+- Frontend: HTML, CSS and vanilla JavaScript; no frontend framework.
+- Data: Supabase PostgreSQL with Row Level Security (RLS).
+- Authentication: Supabase Auth; Admin requires a profile row with role `admin`.
+- Product images: Supabase Storage bucket `product-images`; the Admin's Media section can migrate existing repository product images.
+- Public catalogue: public pages bootstrap product/category data from Supabase and use bundled seed data as a fallback if the remote catalogue is unavailable.
+- Cart and wishlist preferences remain browser-local. Cloud checkout/order creation requires a trusted operation and must not trust browser-supplied totals or payment status.
 
-**Changes do not synchronise across different browsers or customer devices.** Orders placed on another device are not visible in this Admin dashboard. Export/import can be used for manual transfer, but it is not automatic publishing.
+## Admin access
 
-The customer account page uses guest checkout. Online customer registration, password sign-in and Google sign-in are not available in this browser-only build.
+Create users in Supabase Authentication. The first owner/admin profile must be provisioned by the project owner in the Supabase SQL Editor. Never put database passwords, secret keys, service-role keys or GitHub tokens into frontend files or this repository.
 
-## Checkout and payment
+Legacy Admin URLs redirect to the unified Supabase-backed Admin. Products saved through an old browser-local editor are not shared catalogue records; review any local-only archive before retiring that browser data.
 
-- UPI-only checkout with an order-specific payment URI/QR.
-- Payments must be verified manually in the receiving UPI/bank app. The website does not independently verify payment.
-- Shipping is free above ₹999; otherwise the shipping fee is ₹99, according to the current settings.
-- Orders are saved locally in the browser where checkout is completed.
+## Database migrations
 
-## Local testing
+SQL migrations live in `supabase/migrations/`. The initial schema and 24-product seed import have been applied to the project. The category/settings metadata backfill is also implemented in the unified Admin and can be run as a separate migration if needed.
 
-Serve the extracted project directory with any static file server, then open the local address. For example:
+## GitHub Pages deploy
 
-```bash
-python -m http.server 8080
-```
-
-Open `http://localhost:8080` and visit `/admin/login.html` for the Admin page.
-
-## Deployment notes
-
-The project can be deployed as static files. Deploy the full folder structure; do not open individual HTML files using `file://` because browser storage and relative resource behaviour may differ. A static deployment does not make browser-local catalogue edits visible to all customers. A shared live catalogue, secure Admin authentication and central order storage would require a shared service, which is intentionally excluded from this version.
-
-## Image notes
-
-The bundled catalogue contains reference product imagery for development. Replace temporary/reference imagery with final product photography before commercial launch.
-
-
-## GitHub Pages catalogue publishing (V32)
-
-See [`GITHUB_PAGES_CATALOGUE_PUBLISHING.md`](GITHUB_PAGES_CATALOGUE_PUBLISHING.md) for one-time setup and the exact Admin export → GitHub commit → Actions deployment workflow. This publishes products/categories/settings for all customers. Customer orders remain browser-local; a GitHub-only setup cannot centrally synchronise orders.
+The workflow in `.github/workflows/deploy-pages.yml` deploys the static repository from `main`. Supabase publishable configuration is public by design; access is restricted by RLS. Privileged operations belong in trusted server-side functions, never in browser JavaScript.
