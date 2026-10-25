@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Supabase Connection Check | TAVISH &amp; CO.</title>
+<style>
+:root{color-scheme:light;--ink:#211d19;--gold:#b08a43;--paper:#fbf8f3;--line:#e5ded2}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 Arial,sans-serif;padding:24px}
+main{max-width:720px;margin:6vh auto;background:white;border:1px solid var(--line);padding:clamp(22px,5vw,42px);border-radius:18px;box-shadow:0 12px 40px #211d190d}
+h1{font-family:Georgia,serif;font-weight:500;margin-top:0}p{color:#5b554c}.status{padding:14px 16px;border-radius:10px;background:#f3efe8;border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere}.status.ok{background:#edf7ef;border-color:#b9d9c0}.status.warn{background:#fff7e8;border-color:#e9d39d}.status.bad{background:#fff0ef;border-color:#e5b9b6}button{background:var(--ink);color:white;border:0;border-radius:8px;padding:12px 18px;font-weight:600;cursor:pointer}small{color:#71695f}.steps{padding-left:20px}
+</style>
+</head>
+<body>
+<main>
+<h1>TAVISH &amp; CO. — Backend Connection Check</h1>
+<p>This page checks whether the public website can reach your Supabase project and read the products table. It never asks for or displays a secret key.</p>
+<div id="status" class="status" role="status" aria-live="polite">Starting connection check…</div>
+<p><button id="retry" type="button">Run check again</button></p>
+<h2>What the result means</h2>
+<ul class="steps">
+<li><b>Connected and products table found:</b> Supabase is reachable and the schema exists.</li>
+<li><b>Table not found:</b> the database migration has not been applied, or the table name differs.</li>
+<li><b>Permission / RLS error:</b> review the table policies in Supabase.</li>
+<li><b>Network error:</b> check internet access and the project URL.</li>
+</ul>
+<small>This diagnostic does not modify your database or create any records.</small>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase-config.js"></script>
+<script>
+(function(){
+  var out=document.getElementById('status');
+  async function check(){
+    out.className='status';out.textContent='Checking project connection…';
+    try{
+      var cfg=window.TAVISH_SUPABASE_CONFIG;
+      if(!cfg||!cfg.url||!cfg.publishableKey) throw new Error('Supabase public configuration is missing.');
+      if(!window.supabase||!window.supabase.createClient) throw new Error('Supabase client library did not load. Check your internet connection.');
+      var client=window.supabase.createClient(cfg.url,cfg.publishableKey);
+      var result=await client.from('products').select('id').limit(1);
+      if(result.error){
+        var msg=result.error.message||'Unknown Supabase error';
+        out.className='status '+(/permission|policy|row-level|rls/i.test(msg)?'warn':'bad');
+        out.textContent='Supabase project reached, but the products query failed.\n\n'+msg;
+        return;
+      }
+      out.className='status ok';
+      out.textContent='Connected successfully. The products table is available.\nRows returned in this check: '+result.data.length+' (maximum 1).';
+    }catch(e){
+      out.className='status bad';
+      out.textContent='Connection check could not complete.\n\n'+(e&&e.message?e.message:String(e));
+    }
+  }
+  document.getElementById('retry').addEventListener('click',check);
+  check();
+})();
+</script>
+</body>
+</html>
