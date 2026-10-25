@@ -186,7 +186,7 @@
         image: image || '',
         sortOrder: Number(c.sort_order || (seed && seed.sortOrder) || 99),
         visible: c.visible !== false,
-        subcategories: Array.isArray(c.subcategories) ? c.subcategories : (seed && seed.subcategories) || []
+        subcategories: Array.isArray(c.subcategories) && c.subcategories.length ? c.subcategories : (seed && seed.subcategories) || []
       };
     });
 
