@@ -86,6 +86,7 @@
       return false;
     }
     var client = window.supabase.createClient(config.url, config.publishableKey);
+    window.TAVISH_SUPABASE_CLIENT = client;
     var results = await Promise.all([
       client.from('products').select('*').eq('status', 'ACTIVE').order('sort_order', { ascending: true }),
       client.from('categories').select('*').eq('visible', true).order('sort_order', { ascending: true }),
@@ -94,6 +95,7 @@
     ]);
     var pr = results[0], cr = results[1], ir = results[2], sr = results[3];
     if (pr.error) throw new Error('Could not load the shared catalogue: ' + pr.error.message);
+    if (cr.error) throw new Error('Could not load shared categories: ' + cr.error.message);
     if (!Array.isArray(pr.data) || !pr.data.length) {
       showNotice('Supabase returned no active products. Showing the bundled catalogue as a fallback.');
       return false;
