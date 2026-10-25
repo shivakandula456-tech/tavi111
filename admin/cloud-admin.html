@@ -51,7 +51,7 @@
 <section data-panel="settings" class="adm-hidden"><div class="adm-panel"><h2>Store settings</h2><p class="adm-help">Edit the shared JSON value for each setting. Keep valid JSON. Never add keys or passwords here.</p><div id="settingsRows"></div></div></section>
 <section data-panel="audit" class="adm-hidden"><div class="adm-panel"><h2>Audit log</h2><button class="adm-btn alt" id="refreshAudit">Refresh</button><div id="auditRows" style="margin-top:12px"></div></div></section>
 </main></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="../assets/js/supabase-config.js"></script>
+<script src="../data/categories.js"></script><script src="../data/settings.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="../assets/js/supabase-config.js"></script>
 <script>
 (function(){
 'use strict';
@@ -116,7 +116,30 @@ document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',(
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.go)));
 $('newProduct').onclick=startNewProduct;$('productSearch').oninput=renderProducts;$('refreshProducts').onclick=loadCatalogue;$('refreshCategories').onclick=loadCategories;$('refreshMedia').onclick=loadMedia;$('migrateImages').onclick=migrateImages;$('refreshOrders').onclick=loadOrders;$('refreshNewsletter').onclick=loadNewsletter;$('refreshAudit').onclick=loadAudit;
 $('signout').onclick=async()=>{await sb.auth.signOut();location.href='cloud-login.html'};
-async function init(){const {data:{session},error}=await sb.auth.getSession();if(error||!session){location.replace('cloud-login.html');return}user=session.user;$('signedIn').textContent='Signed in as '+(user.email||'Admin');const p=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();if(p.error||!p.data||p.data.role!=='admin'){await sb.auth.signOut();notice('This account is not provisioned as an Admin. Ask the project owner to assign the admin role in public.profiles.','error');return}notice('Secure Admin session verified.','ok');await refreshAll();const requested=new URLSearchParams(location.search).get('view')||'dashboard';if(new URLSearchParams(location.search).get('new')==='1'){startNewProduct()}else{showView(requested)}}
+async function ensureBaseMetadata(){
+ const seeds=window.TAVISH_SEED_CATEGORIES||[];
+ const existing=await sb.from('categories').select('*');
+ if(existing.error)throw existing.error;
+ const bySlug={};(existing.data||[]).forEach(c=>bySlug[c.slug]=c);
+ for(const seed of seeds){
+  const current=bySlug[seed.slug];
+  if(!current){const payload={name:seed.name,slug:seed.slug,description:seed.description||'',image_path:seed.image||null,visible:seed.visible!==false,sort_order:Number(seed.sortOrder||99),subcategories:seed.subcategories||[]};const r=await sb.from('categories').insert(payload);if(r.error)throw r.error;continue}
+  const patch={};
+  if(!current.description&&seed.description)patch.description=seed.description;
+  if(!current.image_path&&seed.image)patch.image_path=seed.image;
+  if((!Array.isArray(current.subcategories)||!current.subcategories.length)&&Array.isArray(seed.subcategories)&&seed.subcategories.length)patch.subcategories=seed.subcategories;
+  if(!Number(current.sort_order)&&seed.sortOrder)patch.sort_order=seed.sortOrder;
+  if(Object.keys(patch).length){patch.updated_at=new Date().toISOString();const r=await sb.from('categories').update(patch).eq('id',current.id);if(r.error)throw r.error}
+ }
+ const settingSeeds=window.TAVISH_SEED_SETTINGS||{};
+ const cur=await sb.from('store_settings').select('key');
+ if(cur.error)throw cur.error;
+ const keys=new Set((cur.data||[]).map(x=>x.key));
+ for(const key of ['brand','contact','commerce','social','seo']){
+  if(!keys.has(key)&&settingSeeds[key]){const r=await sb.from('store_settings').insert({key,value:settingSeeds[key],is_public:true});if(r.error)throw r.error}
+ }
+}
+async function init(){const {data:{session},error}=await sb.auth.getSession();if(error||!session){location.replace('cloud-login.html');return}user=session.user;$('signedIn').textContent='Signed in as '+(user.email||'Admin');const p=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();if(p.error||!p.data||p.data.role!=='admin'){await sb.auth.signOut();notice('This account is not provisioned as an Admin. Ask the project owner to assign the admin role in public.profiles.','error');return}notice('Secure Admin session verified.','ok');await ensureBaseMetadata();await refreshAll();const requested=new URLSearchParams(location.search).get('view')||'dashboard';if(new URLSearchParams(location.search).get('new')==='1'){startNewProduct()}else{showView(requested)}}
 init().catch(e=>notice('Admin failed to initialize: '+e.message,'error'));
 })();
 </script></body></html>
