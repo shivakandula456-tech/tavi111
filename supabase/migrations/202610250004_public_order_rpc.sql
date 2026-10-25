@@ -42,7 +42,7 @@ begin
     raise exception using errcode = '22023', message = 'Invalid checkout payload.';
   end if;
 
-  v_idempotency := pg_catalog.nullif(pg_catalog.btrim(p_payload->>'idempotencyKey'), '');
+  v_idempotency := nullif(pg_catalog.btrim(p_payload->>'idempotencyKey'), '');
   if v_idempotency is not null and pg_catalog.length(v_idempotency) > 100 then
     raise exception using errcode = '22023', message = 'Invalid checkout reference.';
   end if;
@@ -68,7 +68,7 @@ begin
 
   v_name := pg_catalog.btrim(coalesce(p_payload->'customer'->>'name', ''));
   v_phone := pg_catalog.regexp_replace(coalesce(p_payload->'customer'->>'mobile', ''), '[^0-9+]', '', 'g');
-  v_email := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_payload->'customer'->>'email', '')), '');
+  v_email := nullif(pg_catalog.btrim(coalesce(p_payload->'customer'->>'email', '')), '');
   v_address := coalesce(p_payload->'address', '{}'::jsonb);
   v_notes := pg_catalog.left(pg_catalog.btrim(coalesce(p_payload->>'notes', '')), 1000);
 
@@ -88,8 +88,10 @@ begin
      or coalesce(v_address->>'pin','') !~ '^[0-9]{6}$' then
     raise exception using errcode = '22023', message = 'Enter a complete delivery address and six-digit PIN code.';
   end if;
-  if pg_catalog.jsonb_typeof(p_payload->'items') is distinct from 'array'
-     or pg_catalog.jsonb_array_length(p_payload->'items') < 1
+  if pg_catalog.jsonb_typeof(p_payload->'items') is distinct from 'array' then
+    raise exception using errcode = '22023', message = 'Your bag must contain a list of items.';
+  end if;
+  if pg_catalog.jsonb_array_length(p_payload->'items') < 1
      or pg_catalog.jsonb_array_length(p_payload->'items') > 30 then
     raise exception using errcode = '22023', message = 'Your bag must contain between 1 and 30 line items.';
   end if;
@@ -99,8 +101,8 @@ begin
     where key = 'commerce' and is_public = true
     limit 1;
   if v_commerce is not null then
-    v_shipping_fee := pg_catalog.greatest(0, pg_catalog.coalesce(nullif(v_commerce->>'shippingFee','')::numeric, 99) * 100)::bigint;
-    v_free_shipping := pg_catalog.greatest(0, pg_catalog.coalesce(nullif(v_commerce->>'freeShippingAbove','')::numeric, 999) * 100)::bigint;
+    v_shipping_fee := greatest(0, coalesce(nullif(v_commerce->>'shippingFee','')::numeric, 99) * 100)::bigint;
+    v_free_shipping := greatest(0, coalesce(nullif(v_commerce->>'freeShippingAbove','')::numeric, 999) * 100)::bigint;
   end if;
 
   for v_item in select value from pg_catalog.jsonb_array_elements(p_payload->'items')
@@ -124,6 +126,9 @@ begin
     end if;
     if v_product.availability = 'OUT_OF_STOCK' then
       raise exception using errcode = '22023', message = 'A product in your bag is out of stock. Remove it before placing the order.';
+    end if;
+    if not exists (select 1 from public.product_images pi where pi.product_id = v_product.id) then
+      raise exception using errcode = '22023', message = 'A product in your bag has no product image and is not ready for checkout.';
     end if;
 
     v_unit_price := coalesce(v_product.sale_price_paise, v_product.price_paise);
