@@ -165,56 +165,68 @@ alter table public.newsletter_subscribers enable row level security;
 alter table public.admin_audit_log enable row level security;
 
 -- Public storefront reads only approved records.
+drop policy if exists "profiles read own or admin" on public.profiles;
 create policy "profiles read own or admin" on public.profiles
 for select to authenticated
 using (id = (select auth.uid()) or (select public.is_admin()));
 
+drop policy if exists "admin manages profiles" on public.profiles;
 create policy "admin manages profiles" on public.profiles
 for all to authenticated
 using ((select public.is_admin()))
 with check ((select public.is_admin()));
 
+drop policy if exists "public reads visible categories" on public.categories;
 create policy "public reads visible categories" on public.categories
 for select to anon, authenticated
 using (visible = true or (select public.is_admin()));
+drop policy if exists "admin manages categories" on public.categories;
 create policy "admin manages categories" on public.categories
 for all to authenticated
 using ((select public.is_admin()))
 with check ((select public.is_admin()));
 
+drop policy if exists "public reads active products" on public.products;
 create policy "public reads active products" on public.products
 for select to anon, authenticated
 using (status = 'ACTIVE' or (select public.is_admin()));
+drop policy if exists "admin manages products" on public.products;
 create policy "admin manages products" on public.products
 for all to authenticated
 using ((select public.is_admin()))
 with check ((select public.is_admin()));
 
+drop policy if exists "public reads images for active products" on public.product_images;
 create policy "public reads images for active products" on public.product_images
 for select to anon, authenticated
 using (
   exists (select 1 from public.products p where p.id = product_id and p.status = 'ACTIVE')
   or (select public.is_admin())
 );
+drop policy if exists "admin manages product images" on public.product_images;
 create policy "admin manages product images" on public.product_images
 for all to authenticated
 using ((select public.is_admin()))
 with check ((select public.is_admin()));
 
+drop policy if exists "public reads stock for active products" on public.inventory;
 create policy "public reads stock for active products" on public.inventory
 for select to anon, authenticated
 using (
   exists (select 1 from public.products p where p.id = product_id and p.status = 'ACTIVE')
   or (select public.is_admin())
 );
+drop policy if exists "admin manages inventory" on public.inventory;
 create policy "admin manages inventory" on public.inventory
 for all to authenticated
 using ((select public.is_admin()))
 with check ((select public.is_admin()));
 
+drop policy if exists "public reads public settings" on public.store_settings;
 create policy "public reads public settings" on public.store_settings
 for select to anon, authenticated
 using (is_public = true or (select public.is_admin()));
+drop policy if exists "admin manages settings" on public.store_settings;
 create policy "admin manages settings" on public.store_settings
 for all to authenticated
 using ((select public.is_admin()))
@@ -222,16 +234,19 @@ with check ((select public.is_admin()));
 
 -- Orders intentionally have no anonymous insert/read policy yet.
 -- Add order creation through a validated Edge Function before enabling checkout.
+drop policy if exists "admin manages orders" on public.orders;
 create policy "admin manages orders" on public.orders
 for all to authenticated
 using ((select public.is_admin()))
 with check ((select public.is_admin()));
+drop policy if exists "admin manages order items" on public.order_items;
 create policy "admin manages order items" on public.order_items
 for all to authenticated
 using ((select public.is_admin()))
 with check ((select public.is_admin()));
 
 -- Public may subscribe, but cannot read the subscriber list.
+drop policy if exists "public can subscribe" on public.newsletter_subscribers;
 create policy "public can subscribe" on public.newsletter_subscribers
 for insert to anon, authenticated
 with check (
@@ -239,14 +254,17 @@ with check (
   and position('@' in email) > 1
   and status = 'SUBSCRIBED'
 );
+drop policy if exists "admin manages subscribers" on public.newsletter_subscribers;
 create policy "admin manages subscribers" on public.newsletter_subscribers
 for all to authenticated
 using ((select public.is_admin()))
 with check ((select public.is_admin()));
 
+drop policy if exists "admin reads audit log" on public.admin_audit_log;
 create policy "admin reads audit log" on public.admin_audit_log
 for select to authenticated
 using ((select public.is_admin()));
+drop policy if exists "admin inserts audit log" on public.admin_audit_log;
 create policy "admin inserts audit log" on public.admin_audit_log
 for insert to authenticated
 with check ((select public.is_admin()) and actor_id = (select auth.uid()));
@@ -259,19 +277,23 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+drop policy if exists "public reads product images" on storage.objects;
 create policy "public reads product images" on storage.objects
 for select to anon, authenticated
 using (bucket_id = 'product-images');
 
+drop policy if exists "admin uploads product images" on storage.objects;
 create policy "admin uploads product images" on storage.objects
 for insert to authenticated
 with check (bucket_id = 'product-images' and (select public.is_admin()));
 
+drop policy if exists "admin updates product images" on storage.objects;
 create policy "admin updates product images" on storage.objects
 for update to authenticated
 using (bucket_id = 'product-images' and (select public.is_admin()))
 with check (bucket_id = 'product-images' and (select public.is_admin()));
 
+drop policy if exists "admin deletes product images" on storage.objects;
 create policy "admin deletes product images" on storage.objects
 for delete to authenticated
 using (bucket_id = 'product-images' and (select public.is_admin()));
