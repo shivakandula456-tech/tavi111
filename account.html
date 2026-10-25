@@ -47,11 +47,13 @@
         <label>Phone number (optional)<input name="phone" type="tel" autocomplete="tel" maxlength="25" placeholder="For delivery updates"></label>
         <button class="btn btn--gold btn--block" type="submit">Save profile</button>
       </form>
-      <p class="account-small">Guest and existing orders are not automatically attached to this account. Wishlist sync and account order history require a separate secure data integration.</p>
+      <h3 class="account-subtitle">Your orders</h3><div data-account-orders><p class="account-small">Sign in to load your order history.</p></div><p class="account-small">Guest orders are not automatically attached to this account.</p>
       <button class="btn btn--outline btn--block" type="button" data-auth-action="signout">Sign out</button>
     </section>
     <p class="account-privacy">Your account data is used to manage your sign-in and profile. See our <a href="privacy-policy.html">Privacy Policy</a>.</p>
   </div></main>
   <footer class="account-footer"><a href="index.html">TAVISH &amp; CO.</a><span>·</span><a href="contact.html">Need help?</a><span>·</span><a href="privacy-policy.html">Privacy</a></footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-config.js"></script>
   <script src="assets/js/customer-auth.js"></script>
 </body></html>
