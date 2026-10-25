@@ -241,7 +241,7 @@
     var box = T.qs('[data-view="success"]');
     if (box) {
       var disclaimer = T.qs('[data-order-disclaimer]', box);
-      if (disclaimer) disclaimer.textContent = String(order.paymentMethod || '').toUpperCase() === 'UPI' ? 'Order saved in this browser only. Payment is pending manual verification; this page cannot confirm receipt of funds.' : "This order has been saved in this browser localStorage only and has not been transmitted to any server. No payment has been taken.";
+      if (disclaimer) disclaimer.textContent = String(order.paymentMethod || '').toUpperCase() === 'UPI' ? 'Order received by TAVISH & CO. Payment is pending manual verification. Do not treat this order as paid until the shop confirms receipt of funds.' : 'Order received by TAVISH & CO. Payment status is pending.';
       T.qsa('[data-success]', box).forEach(function (el) {
         var key = el.getAttribute('data-success');
         if (key === 'count') el.textContent = String(order.items.reduce(function (n, i) { return n + (i.qty || 1); }, 0));
@@ -288,9 +288,11 @@
     }
   }
 
+  var orderSubmitting = false;
   if (form) {
-    form.addEventListener('submit', function (e) {
+    form.addEventListener('submit', async function (e) {
       e.preventDefault();
+      if (orderSubmitting) return;
       if (!store.cart.items().length) {
         showError('Your bag is empty. Please add a piece before checking out.');
         setView('cart');
@@ -299,23 +301,68 @@
       var data = validate();
       if (!data) return;
 
-      var order = store.orders.create({
-        paymentMethod: 'UPI',
-        paymentStatus: 'PENDING_MANUAL_VERIFICATION',
-        customer: { name: data.name, mobile: data.mobile, email: data.email },
-        address: { line1: data.line1, city: data.city, state: data.state, pin: data.pin },
-        notes: data.notes,
-        items: store.cart.items(),
-        subtotal: store.cart.subtotal(),
-        shipping: store.cart.shipping(),
-        total: store.cart.total()
-      });
+      var client = window.TAVISH_SUPABASE_CLIENT;
+      if (!client || typeof client.rpc !== 'function') {
+        showError('Secure checkout is not connected. No order was submitted. Please refresh and try again.');
+        return;
+      }
+      var submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+      var priorLabel = submitBtn ? (submitBtn.textContent || submitBtn.value || '') : '';
+      orderSubmitting = true;
+      if (submitBtn) { submitBtn.disabled = true; if (submitBtn.tagName === 'INPUT') submitBtn.value = 'Submitting…'; else submitBtn.textContent = 'Submitting…'; }
 
-      store.cart.clear();
-      renderSuccess(order);
-      setView('success');
-      try { window.history.replaceState(null, '', 'cart.html?order=' + encodeURIComponent(order.id)); } catch (err) { /* noop */ }
-      T.toast('Order ' + order.id + ' saved in this browser', 'success');
+      try {
+        var requestKey = '';
+        try { requestKey = window.sessionStorage.getItem('tavish_order_attempt') || ''; } catch (storageErr) {}
+        if (!requestKey) {
+          requestKey = window.crypto && typeof window.crypto.randomUUID === 'function'
+            ? window.crypto.randomUUID()
+            : ('TAV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12));
+          try { window.sessionStorage.setItem('tavish_order_attempt', requestKey); } catch (storageErr) {}
+        }
+        var cartItems = store.cart.items().map(function (item) {
+          return { sku: String(item.sku || ''), quantity: Math.max(1, Math.min(10, Number(item.qty) || 1)) };
+        });
+        var payload = {
+          idempotencyKey: requestKey,
+          customer: { name: data.name, mobile: data.mobile, email: data.email },
+          address: { line1: data.line1, city: data.city, state: data.state, pin: data.pin },
+          notes: data.notes,
+          items: cartItems
+        };
+        var response = await client.rpc('create_public_order', { p_payload: payload });
+        if (response.error) throw new Error(response.error.message || 'The order could not be saved to the shared database.');
+        var result = response.data;
+        if (!result || !result.order_number || !result.id) throw new Error('The server did not return an order confirmation. Keep your bag and retry; do not pay until an order reference is shown.');
+
+        var order = {
+          id: String(result.order_number),
+          databaseId: String(result.id),
+          paymentMethod: 'UPI',
+          paymentStatus: result.payment_status || 'PENDING',
+          fulfillmentStatus: result.fulfillment_status || 'PLACED',
+          customer: { name: data.name, mobile: data.mobile, email: data.email },
+          address: { line1: data.line1, city: data.city, state: data.state, pin: data.pin },
+          notes: data.notes,
+          items: store.cart.items(),
+          subtotal: Number(result.subtotal_paise || 0) / 100,
+          shipping: Number(result.shipping_paise || 0) / 100,
+          total: Number(result.total_paise || 0) / 100,
+          createdAt: new Date().toISOString()
+        };
+        try { window.localStorage.setItem('tavish_last_cloud_order_receipt', JSON.stringify(order)); } catch (storageErr) {}
+        try { window.sessionStorage.removeItem('tavish_order_attempt'); } catch (storageErr) {}
+        store.cart.clear();
+        renderSuccess(order);
+        setView('success');
+        try { window.history.replaceState(null, '', 'cart.html?order=' + encodeURIComponent(order.id)); } catch (historyErr) {}
+        T.toast('Order ' + order.id + ' received. Payment remains pending verification.', 'success');
+      } catch (err) {
+        showError('Order was not confirmed: ' + (err && err.message ? err.message : String(err)) + '. Your bag has been kept. Do not pay unless an order reference is displayed.');
+      } finally {
+        orderSubmitting = false;
+        if (submitBtn) { submitBtn.disabled = false; if (submitBtn.tagName === 'INPUT') submitBtn.value = priorLabel; else submitBtn.textContent = priorLabel; }
+      }
     });
   }
 
@@ -324,7 +371,9 @@
 
   var orderParam = T.params().order;
   if (orderParam) {
-    var existing = store.orders.get(orderParam);
+    var receipt = null;
+    try { receipt = JSON.parse(window.localStorage.getItem('tavish_last_cloud_order_receipt') || 'null'); } catch (receiptErr) {}
+    var existing = receipt && String(receipt.id) === String(orderParam) ? receipt : store.orders.get(orderParam);
     if (existing) {
       renderSuccess(existing);
       setView('success');
