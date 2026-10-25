@@ -24,6 +24,14 @@ create trigger on_auth_user_created_tavish_profile
 after insert on auth.users
 for each row execute function public.handle_new_customer_profile();
 
+-- Backfill profiles for users who existed before the trigger was installed.
+-- Existing roles (including the owner/admin role) are preserved.
+insert into public.profiles (id, display_name, role)
+select u.id, coalesce(u.raw_user_meta_data->>'full_name', ''), 'customer'
+from auth.users u
+on conflict (id) do nothing;
+
+
 drop policy if exists "customer updates own profile" on public.profiles;
 create policy "customer updates own profile" on public.profiles
 for update to authenticated
